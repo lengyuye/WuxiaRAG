@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 import traceback
+from typing import List
+
+from langchain_core.documents import Document
 
 from config import RAGConfig, DEFAULT_CONFIG
 from tools.language_tool import LanguageTool
@@ -11,6 +14,7 @@ from .data_preparation import DataPreparationModule
 from .index_construction import IndexConstructionModule
 from .retrieval_optimization import RetrievalOptimizationModule
 from .generation_integration import GenerationIntegrationModule
+import random
 
 
 class WuxiaRAGSystem:
@@ -226,6 +230,73 @@ class WuxiaRAGSystem:
 			# 构建知识库
 			self.build_knowledge_base()
 			self.init_finished = True
+
+	def get_chunks_for_eval(self)->List[Document]:
+		"""
+		 获取文档数据,仅用于评估数据
+		Returns:
+			获取的文档列表
+		 """
+		self.data_module = DataPreparationModule(self.config.data_path, self.config.file_type)
+		self.data_module.load_documents()
+		# 3. 文本分块
+		print("进行文本分块...")
+		chunks = self.data_module.chunk_documents()
+
+
+		# 目标取 10 个文档
+		random.seed(42)
+
+		target_count = DEFAULT_CONFIG.eval_sample_count
+		step = max(1, len(chunks) // target_count)
+
+		sampled_docs = chunks[::step][:target_count]
+
+		# 如果不够 10 个，再随机补几个
+		if len(sampled_docs) < target_count:
+			remaining = [d for d in chunks if d not in sampled_docs]
+			sampled_docs += random.sample(remaining, target_count - len(sampled_docs))
+
+		print(f"采样了 {len(sampled_docs)} 个文档，覆盖章节：")
+		for doc in sampled_docs:
+			print(doc.metadata.get('source', '未知'))
+		return sampled_docs
+
+	def get_single_rag_output_for_eval(self,question):
+		"""
+		获取RAG输出用于评估
+		:param question:
+		:return: 回答相关的上下文，回答
+		"""
+
+		document_name, question_process = self.preprocess_question(question)
+
+		# 调用检索器,检索子块
+		relevant_chunks = self.retrieval_module.multi_hybrid_search(self.generation_module.llm, question_process,top_k=self.config.top_k)
+		# 纯向量检索，用于测试
+		# relevant_chunks = self.retrieval_module.vector_search(question,top_k=self.config.top_k)
+
+		# 获取父块
+		relevant_docs = self.data_module.get_parent_documents(relevant_chunks)
+
+		# 调用生成链，生成回答
+		answer_output = self.generation_module.generate_basic_answer(question_process, relevant_docs)
+		return relevant_chunks,answer_output
+
+	def get_rag_output_for_eval(self,questions):
+		"""
+		获取RAG输出用于评估
+		:param questions:
+		:return:
+		"""
+		responses = []
+		retrieved_contexts = []
+		for q in questions:
+			print(f"开始回答问题：{q}")
+			relevant_chunks,answer_output = self.get_single_rag_output_for_eval(q)
+			responses.append(answer_output)
+			retrieved_contexts.append([doc.page_content for doc in relevant_chunks])
+		return responses, retrieved_contexts
 
 	def test_query(self, query: str,search_type:SearchType = SearchType.RRF):
 		"""

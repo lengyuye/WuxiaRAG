@@ -32,5 +32,8 @@ class RAGConfig:
 	temperature: float = 1.0
 	max_tokens: int = 8192
 
+	# 评估采样的文档数量
+	eval_sample_count:int = 200
+
 # 默认配置实例
 DEFAULT_CONFIG = RAGConfig()

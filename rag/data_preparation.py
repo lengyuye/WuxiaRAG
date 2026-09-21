@@ -62,7 +62,7 @@ class DataPreparationModule:
 				#"chapter_num": chapter_num,
 				"chapter_title": chapter_title,
 				"chapter_id": chapter_id,
-				"source": f"{book_path}",
+				"source": f"{book_title}_{chapter_title}",
 			}
 
 			parents.append(Document(page_content=part, metadata=metadata))

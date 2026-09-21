@@ -57,6 +57,16 @@ class RetrievalOptimizationModule:
 
 		logger.info("检索器设置完成")
 
+	def vector_search(self,query:str, top_k: int = 5):
+		"""
+		纯向量检索
+		:param query:
+		:param top_k:
+		:return:
+		"""
+		docs = self.vector_retriever.invoke(query)
+		return docs[:top_k]
+
 	def multi_hybrid_search(self,llm:ChatDeepSeek, query: str, top_k: int = 5):
 		# 生成多条检索路径
 		plan = self._query_decompose(llm,query)
