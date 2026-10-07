@@ -22,6 +22,6 @@ df["response"] = responses
 df["retrieved_contexts"] = retrieved_contexts
 
 # 4. 保存补充后的数据集
-df.to_csv("datasets/eval_dataset_full.csv", index=False)
+df.to_csv("datasets/eval_dataset_full.csv", index=False,encoding="utf-8-sig")
 
 print("补充数据集完成")
